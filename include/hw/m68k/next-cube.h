@@ -6,6 +6,18 @@
 
 #define TYPE_NEXTKBD "next-kbd"
 
+#define TYPE_NEXT_NET "next-net"
+
+enum nextnet_irqs {
+    NEXTNET_TX_I_DMA,
+    NEXTNET_RX_I_DMA,
+    NEXTNET_TX_I,
+    NEXTNET_RX_I,
+    NEXTNET_NUM_IRQS
+};
+
+#define NEXT_NET_IRQS 4
+
 enum next_dma_chan {
     NEXTDMA_FD,
     NEXTDMA_ENRX,

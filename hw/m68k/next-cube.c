@@ -26,7 +26,7 @@
 #include "hw/qdev-properties.h"
 #include "qapi/error.h"
 #include "ui/console.h"
-#include "target/m68k/cpu.h"
+#include "net/net.h"
 
 /* #define DEBUG_NEXT */
 #ifdef DEBUG_NEXT
@@ -954,6 +954,52 @@ static void next_escc_init(M68kCPU *cpu)
     sysbus_mmio_map(s, 0, 0x2118000);
 }
 
+static void nextnet_irq(void *opaque, int n, int level)
+{
+    switch (n) {
+    case NEXTNET_TX_I:
+        next_irq(opaque, NEXT_ENTX_I, level);
+        break;
+    case NEXTNET_RX_I:
+        next_irq(opaque, NEXT_ENRX_I, level);
+        break;
+    case NEXTNET_TX_I_DMA:
+        next_irq(opaque, NEXT_ENTX_DMA_I, level);
+        break;
+    case NEXTNET_RX_I_DMA:
+        next_irq(opaque, NEXT_ENRX_DMA_I, level);
+        break;
+    }
+}
+
+static void nextnet_init(M68kCPU *cpu)
+{
+    DeviceState *dev;
+    SysBusDevice *sbd;
+    NICInfo *ni = &nd_table[0];
+    qemu_irq *net_irqs;
+    int i;
+
+    if (!ni->used) {
+        return;
+    }
+
+    qemu_check_nic_model(ni, TYPE_NEXT_NET);
+    dev = qdev_create(NULL, TYPE_NEXT_NET);
+    qdev_set_nic_properties(dev, ni);
+    qdev_init_nofail(dev);
+
+    sbd = SYS_BUS_DEVICE(dev);
+    sysbus_mmio_map(sbd, 0, 0x02106000);
+    sysbus_mmio_map(sbd, 1, 0x02000110);
+
+    /* allocate TX/RX and DMA irqs */
+    net_irqs = qemu_allocate_irqs(nextnet_irq, cpu, NEXTNET_NUM_IRQS);
+    for (i = 0; i < NEXTNET_NUM_IRQS; i++) {
+        sysbus_connect_irq(sbd, i, net_irqs[i]);
+    }
+}
+
 static void next_cube_init(MachineState *machine)
 {
     M68kCPU *cpu;
@@ -1048,8 +1094,8 @@ static void next_cube_init(MachineState *machine)
     /* Serial */
     next_escc_init(cpu);
 
-    /* TODO: */
     /* Network */
+    nextnet_init(cpu);
 
     /* SCSI */
     next_scsi_init(ns, cpu);
