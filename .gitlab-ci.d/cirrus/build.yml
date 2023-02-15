@@ -33,5 +33,9 @@ build_task:
     - for TARGET in $TEST_TARGETS ;
       do
         $MAKE -j$(sysctl -n hw.ncpu) $TARGET V=1
-        || { cat meson-logs/testlog.txt; exit 1; } ;
       done
+  always:
+    build_result_artifacts:
+      path: "build/meson-logs/testlog.junit.xml"
+      format: junit
+      type: text/xml
