@@ -1,0 +1,153 @@
+env:
+  CIRRUS_CLONE_DEPTH: 1
+
+freebsd_task:
+  freebsd_instance:
+    image_family: freebsd-13-1
+    cpu: 8
+    memory: 8G
+  install_script:
+    - ASSUME_ALWAYS_YES=yes pkg bootstrap -f ;
+    - pkg upgrade -y
+    - pkg install -y alsa-lib bash bison bzip2 ca_root_nss capstone4 ccache
+        cdrkit-genisoimage cmocka ctags curl cyrus-sasl dbus diffutils dtc flex
+        fusefs-libs3 gettext git glib gmake gnutls gsed gtk3 json-c libepoxy
+        libffi libgcrypt libjpeg-turbo libnfs libslirp libspice-server libssh
+        libtasn1 llvm lzo2 meson ncurses nettle ninja opencv pixman pkgconf png
+        py39-numpy py39-pillow py39-pip py39-sphinx py39-sphinx_rtd_theme
+        py39-yaml python3 rpm2cpio sdl2 sdl2_image snappy sndio socat
+        spice-protocol tesseract usbredir virglrenderer vte3 zstd
+  script:
+    - mkdir build
+    - cd build
+    - ../configure --enable-werror 
+        || { cat config.log meson-logs/meson-log.txt; exit 1; }
+    - gmake -j$(sysctl -n hw.ncpu)
+    - gmake -j$(sysctl -n hw.ncpu) check
+
+macos_task:
+  osx_instance:
+    image: ghcr.io/cirruslabs/macos-monterey-base:latest
+  install_script:
+    - brew install bash bc bison bzip2 capstone ccache cmocka ctags dbus
+        diffutils dtc flex gcovr gettext git glib gnu-sed gnutls gtk+3
+        jpeg-turbo json-c libepoxy libffi libgcrypt libiscsi libnfs libpng
+        libslirp libssh libtasn1 libusb llvm lzo make meson nettle ninja pixman
+        pkg-config python3 rpm2cpio sdl2 sdl2_image snappy socat sparse
+        spice-protocol tesseract usbredir vde vte3 zlib zstd
+  script:
+    - mkdir build
+    - cd build
+    - ../configure --python=/opt/homebrew/bin/python3 --enable-werror
+        || { cat config.log meson-logs/meson-log.txt; exit 1; }
+    - gmake -j$(sysctl -n hw.ncpu)
+    - gmake -j$(sysctl -n hw.ncpu) check
+
+windows_msys2_task:
+  timeout_in: 90m
+  windows_container:
+    image: cirrusci/windowsservercore:2019
+    os_version: 2019
+    cpu: 8
+    memory: 8G
+  env:
+    CIRRUS_SHELL: powershell
+    MSYS: winsymlinks:native
+    MSYSTEM: MINGW64
+    MSYS2_URL: https://github.com/msys2/msys2-installer/releases/download/2022-06-03/msys2-base-x86_64-20220603.sfx.exe
+    MSYS2_FINGERPRINT: 0
+    MSYS2_PACKAGES: "
+      diffutils git grep make pkg-config sed
+      mingw-w64-x86_64-python
+      mingw-w64-x86_64-python-sphinx
+      mingw-w64-x86_64-toolchain
+      mingw-w64-x86_64-SDL2
+      mingw-w64-x86_64-SDL2_image
+      mingw-w64-x86_64-gtk3
+      mingw-w64-x86_64-glib2
+      mingw-w64-x86_64-ninja
+      mingw-w64-x86_64-jemalloc
+      mingw-w64-x86_64-lzo2
+      mingw-w64-x86_64-zstd
+      mingw-w64-x86_64-libjpeg-turbo
+      mingw-w64-x86_64-pixman
+      mingw-w64-x86_64-libgcrypt
+      mingw-w64-x86_64-libpng
+      mingw-w64-x86_64-libssh
+      mingw-w64-x86_64-snappy
+      mingw-w64-x86_64-libusb
+      mingw-w64-x86_64-usbredir
+      mingw-w64-x86_64-libtasn1
+      mingw-w64-x86_64-nettle
+      mingw-w64-x86_64-cyrus-sasl
+      mingw-w64-x86_64-curl
+      mingw-w64-x86_64-gnutls
+      mingw-w64-x86_64-libnfs
+    "
+    CHERE_INVOKING: 1
+  msys2_cache:
+    folder: C:\tools\archive
+    reupload_on_changes: false
+    # These env variables are used to generate fingerprint to trigger the cache procedure
+    # If wanna to force re-populate msys2, increase MSYS2_FINGERPRINT
+    fingerprint_script:
+      - |
+        echo $env:CIRRUS_TASK_NAME
+        echo $env:MSYS2_URL
+        echo $env:MSYS2_FINGERPRINT
+        echo $env:MSYS2_PACKAGES
+    populate_script:
+      - |
+        md -Force C:\tools\archive\pkg
+        $start_time = Get-Date
+        bitsadmin /transfer msys_download /dynamic /download /priority FOREGROUND $env:MSYS2_URL C:\tools\archive\base.exe
+        Write-Output "Download time taken: $((Get-Date).Subtract($start_time))"
+        cd C:\tools
+        C:\tools\archive\base.exe -y
+        del -Force C:\tools\archive\base.exe
+        Write-Output "Base install time taken: $((Get-Date).Subtract($start_time))"
+        $start_time = Get-Date
+
+        ((Get-Content -path C:\tools\msys64\etc\\post-install\\07-pacman-key.post -Raw) -replace '--refresh-keys', '--version') | Set-Content -Path C:\tools\msys64\etc\\post-install\\07-pacman-key.post
+        C:\tools\msys64\usr\bin\bash.exe -lc "sed -i 's/^CheckSpace/#CheckSpace/g' /etc/pacman.conf"
+        C:\tools\msys64\usr\bin\bash.exe -lc "export"
+        C:\tools\msys64\usr\bin\pacman.exe --noconfirm -Sy
+        echo Y | C:\tools\msys64\usr\bin\pacman.exe --noconfirm -Suu --overwrite=*
+        taskkill /F /FI "MODULES eq msys-2.0.dll"
+        tasklist
+        C:\tools\msys64\usr\bin\bash.exe -lc "mv -f /etc/pacman.conf.pacnew /etc/pacman.conf || true"
+        C:\tools\msys64\usr\bin\bash.exe -lc "pacman --noconfirm -Syuu --overwrite=*"
+        Write-Output "Core install time taken: $((Get-Date).Subtract($start_time))"
+        $start_time = Get-Date
+
+        C:\tools\msys64\usr\bin\bash.exe -lc "pacman --noconfirm -S --needed $env:MSYS2_PACKAGES"
+        Write-Output "Package install time taken: $((Get-Date).Subtract($start_time))"
+        $start_time = Get-Date
+
+        del -Force -ErrorAction SilentlyContinue C:\tools\msys64\etc\mtab
+        del -Force -ErrorAction SilentlyContinue C:\tools\msys64\dev\fd
+        del -Force -ErrorAction SilentlyContinue C:\tools\msys64\dev\stderr
+        del -Force -ErrorAction SilentlyContinue C:\tools\msys64\dev\stdin
+        del -Force -ErrorAction SilentlyContinue C:\tools\msys64\dev\stdout
+        del -Force -Recurse -ErrorAction SilentlyContinue C:\tools\msys64\var\cache\pacman\pkg
+        tar cf C:\tools\archive\msys64.tar -C C:\tools\ msys64
+
+        Write-Output "Package archive time taken: $((Get-Date).Subtract($start_time))"
+        del -Force -Recurse -ErrorAction SilentlyContinue c:\tools\msys64 
+  install_script:
+    - |
+      $start_time = Get-Date
+      cd C:\tools
+      ls C:\tools\archive\msys64.tar
+      tar xf C:\tools\archive\msys64.tar
+      Write-Output "Extract msys2 time taken: $((Get-Date).Subtract($start_time))"
+  script:
+    - mkdir build
+    - cd build
+    - C:\tools\msys64\usr\bin\bash.exe -lc "../configure --python=python3
+        --target-list-exclude=i386-softmmu,ppc64-softmmu,aarch64-softmmu,mips64-softmmu,mips-softmmu,mipsel-softmmu,sh4-softmmu,microblazeel-softmmu,xtensaeb-softmmu"
+    - C:\tools\msys64\usr\bin\bash.exe -lc "make -j8"
+    - exit $LastExitCode
+  test_script:
+    - C:\tools\msys64\usr\bin\bash.exe -lc "cd build && make V=1 check"
+    - exit $LastExitCode
