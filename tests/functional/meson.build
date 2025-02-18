@@ -214,6 +214,7 @@ tests_ppc64_system_thorough = [
   'ppc64_hv',
   'ppc64_powernv',
   'ppc64_pseries',
+  'ppc64_replay',
   'ppc64_tuxrun',
   'ppc64_mac99',
 ]
