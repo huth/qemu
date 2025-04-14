@@ -844,15 +844,6 @@ static uint16_t default_GEN17_GA1[] = {
 
 /* QEMU (CPU model) features */
 
-static uint16_t qemu_V4_0[] = {
-    /*
-     * Only BFP bits are implemented (HFP, DFP, PFPO and DIVIDE TO INTEGER not
-     * implemented yet).
-     */
-    S390_FEAT_FLOATING_POINT_EXT,
-    S390_FEAT_ZPCI,
-};
-
 static uint16_t qemu_V4_1[] = {
     S390_FEAT_STFLE_53,
     S390_FEAT_VECTOR,
@@ -1015,7 +1006,6 @@ static FeatGroupDefSpec FeatGroupDef[] = {
  * QEMU (CPU model) features
  *******************************/
 static FeatGroupDefSpec QemuFeatDef[] = {
-    QEMU_FEAT_INITIALIZER(V4_0),
     QEMU_FEAT_INITIALIZER(V4_1),
     QEMU_FEAT_INITIALIZER(V6_0),
     QEMU_FEAT_INITIALIZER(V6_2),
