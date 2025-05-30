@@ -187,6 +187,7 @@ static const TypeInfo petalogix_s3adsp1800_machine_types[] = {
         .name           = TYPE_PETALOGIX_S3ADSP1800_MACHINE,
         .parent         = TYPE_MACHINE,
         .class_init     = petalogix_s3adsp1800_machine_class_init,
+        .instance_size  = sizeof(S3Adsp1800MachineState),
     },
 };
 
