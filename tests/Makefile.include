@@ -4,6 +4,7 @@
 check-help:
 	@echo "Regression testing targets:"
 	@echo " $(MAKE) check                    Run block, qapi-schema, unit, softfloat, qtest and decodetree tests"
+	@echo " $(MAKE) check-thorough           Download assets and run almost all non-flaky tests"
 	@echo " $(MAKE) bench                    Run speed tests"
 	@echo
 	@echo "Individual test suites:"
@@ -128,8 +129,12 @@ check-func check-func-quick:
 
 # Consolidated targets
 
-.PHONY: check check-clean
+.PHONY: check check-thorough check-clean
 check:
+
+check-thorough: check-venv
+	@$(NINJA) precache-functional
+	$(MAKE) check SPEED=thorough QEMU_TEST_ALLOW_SLOW=1
 
 check-build: run-ninja
 
