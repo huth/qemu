@@ -58,6 +58,9 @@ before_script:
 
 # Main build & test - rarely overridden - controlled by TEST_CMD
 script:
+  - df
+  - apt-get clean
+  - df
   - BUILD_RC=0 && make -j${JOBS} || BUILD_RC=$?
   - |
     if [ "$BUILD_RC" -eq 0 ] && [ -n "$TEST_BUILD_CMD" ]; then
